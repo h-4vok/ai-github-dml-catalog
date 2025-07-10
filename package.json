@@ -1,0 +1,31 @@
+{
+  "name": "ai-github-dml-catalog",
+  "version": "1.0.0",
+  "description": "A bot to scan GitHub repositories, identify DML statements, and generate a data impact catalog.",
+  "author": "Christian Guzman",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/main.ts",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "format": "prettier --write \"**/*.ts\"",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@typescript-eslint/eslint-plugin": "latest",
+    "@typescript-eslint/parser": "latest",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "husky": "^9.0.11",
+    "prettier": "^3.3.2",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "octokit": "^4.0.2",
+    "simple-git": "^3.25.0"
+  }
+}
