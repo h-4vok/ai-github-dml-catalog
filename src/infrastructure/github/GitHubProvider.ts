@@ -22,12 +22,15 @@ export class GitHubProvider implements I_SourceCodeProvider {
 
   async getOrganizationRepos(): Promise<RepoInfo[]> {
     try {
-      const repos = await this.octokit.paginate(this.octokit.rest.repos.listForOrg, {
-        org: this.orgName,
-        type: 'all',
-      });
+      const repos = await this.octokit.paginate(
+        this.octokit.rest.repos.listForOrg,
+        {
+          org: this.orgName,
+          type: 'all',
+        }
+      );
       // FIX: Populate the orgName from the repo's owner information
-      return repos.map(repo => ({
+      return repos.map((repo) => ({
         name: repo.name,
         cloneUrl: repo.clone_url,
         orgName: repo.owner.login,

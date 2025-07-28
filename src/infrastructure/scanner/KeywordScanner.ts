@@ -14,7 +14,10 @@ export class KeywordScanner implements I_FileScanner {
 
   constructor(private readonly fileExtensions: string[]) {}
 
-  async *scan(directoryPath: string, repoName: string): AsyncGenerator<CodeSnippet> {
+  async *scan(
+    directoryPath: string,
+    repoName: string
+  ): AsyncGenerator<CodeSnippet> {
     const entries = await readdir(directoryPath, { withFileTypes: true });
 
     for (const entry of entries) {
@@ -22,13 +25,19 @@ export class KeywordScanner implements I_FileScanner {
       if (entry.isDirectory()) {
         if (entry.name === '.git' || entry.name === 'node_modules') continue;
         yield* this.scan(fullPath, repoName);
-      } else if (entry.isFile() && this.fileExtensions.includes(extname(entry.name))) {
+      } else if (
+        entry.isFile() &&
+        this.fileExtensions.includes(extname(entry.name))
+      ) {
         yield* this.scanFile(fullPath, repoName);
       }
     }
   }
 
-  private async *scanFile(filePath: string, repoName: string): AsyncGenerator<CodeSnippet> {
+  private async *scanFile(
+    filePath: string,
+    repoName: string
+  ): AsyncGenerator<CodeSnippet> {
     try {
       const content = await readFile(filePath, 'utf-8');
       const lines = content.split('\n');

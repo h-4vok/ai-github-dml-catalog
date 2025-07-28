@@ -30,20 +30,25 @@ export class CloudLlmClient implements I_LlmClient {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this.apiKey}`,
         }, // <-- FIX: Added a comma here
         body: JSON.stringify({
           model: this.model,
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Analyze this code:\n\n\`\`\`\n${snippet.code}\n\`\`\`` },
+            {
+              role: 'user',
+              content: `Analyze this code:\n\n\`\`\`\n${snippet.code}\n\`\`\``,
+            },
           ],
           response_format: { type: 'json_object' },
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`Cloud LLM API request failed with status ${response.status}`);
+        throw new Error(
+          `Cloud LLM API request failed with status ${response.status}`
+        );
       }
 
       const result = await response.json();
@@ -58,7 +63,6 @@ export class CloudLlmClient implements I_LlmClient {
         sourceFile: snippet.filePath,
         sourceLine: snippet.line,
       }));
-
     } catch (error) {
       console.error('Error analyzing snippet with Cloud LLM:', error);
       return [];
