@@ -6,7 +6,6 @@
 export interface RepoInfo {
   name: string;
   cloneUrl: string;
-  orgName: string; // FIX: Added organization name
 }
 
 /**
@@ -18,6 +17,12 @@ export interface CodeSnippet {
   line: number;
   code: string;
 }
+
+/**
+ * Represents a snippet that was analyzed by the LLM but found to contain no DML.
+ * For simplicity, it has the same structure as a CodeSnippet.
+ */
+export type RejectedSnippet = CodeSnippet;
 
 /**
  * Represents the structured analysis of a DML statement found in a code snippet.
