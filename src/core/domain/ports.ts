@@ -1,27 +1,13 @@
 // src/core/domain/ports.ts
 
-import {
-  RepoInfo,
-  CodeSnippet,
-  DmlAnalysis,
-  RepoDmlCatalog,
-} from './models';
+import { CodeSnippet, DmlAnalysis, RepoDmlCatalog } from './models';
 
 /**
- * Port for providing source code from a version control system.
- * This interface defines the contract for fetching repository information and code.
+ * Port for providing code snippets that match a specific query.
+ * This abstracts the source of the code, which is now a search API instead of a local clone.
  */
-export interface I_SourceCodeProvider {
-  getOrganizationRepos(): Promise<RepoInfo[]>;
-  cloneRepo(repo: RepoInfo, localPath: string): Promise<void>;
-}
-
-/**
- * Port for scanning a directory of files to find candidate code snippets.
- * This decouples the core logic from the file system and scanning strategy.
- */
-export interface I_FileScanner {
-  scan(directoryPath: string, repoName: string): AsyncGenerator<CodeSnippet>;
+export interface I_CodeSearchProvider {
+  findDmlSnippets(): AsyncGenerator<CodeSnippet>;
 }
 
 /**

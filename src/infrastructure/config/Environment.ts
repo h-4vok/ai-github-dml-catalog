@@ -26,15 +26,18 @@ export class Environment {
     }
     this.llmProvider = provider;
 
-    this.ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    this.ollamaBaseUrl =
+      process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
     this.ollamaModel = process.env.OLLAMA_MODEL || 'llama3';
 
     this.cloudApiKey = process.env.CLOUD_API_KEY || '';
     this.cloudApiUrl = process.env.CLOUD_API_URL || '';
     this.cloudModel = process.env.CLOUD_MODEL || '';
 
-    const extensions = process.env.SCANNER_FILE_EXTENSIONS || '.php,.go,.java,.cs,.py,.rb,.js,.ts,.sql';
-    this.scannerFileExtensions = extensions.split(',').map(ext => ext.trim());
+    const extensions =
+      process.env.SCANNER_FILE_EXTENSIONS ||
+      '.php,.go,.java,.cs,.py,.rb,.js,.ts,.sql';
+    this.scannerFileExtensions = extensions.split(',').map((ext) => ext.trim());
   }
 
   private getOrThrow(key: string): string {

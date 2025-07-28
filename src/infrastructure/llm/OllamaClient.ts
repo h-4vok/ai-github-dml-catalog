@@ -27,7 +27,9 @@ export class OllamaClient implements I_LlmClient {
       });
 
       if (!response.ok) {
-        throw new Error(`Ollama API request failed with status ${response.status}`);
+        throw new Error(
+          `Ollama API request failed with status ${response.status}`
+        );
       }
 
       const result = await response.json();
@@ -43,7 +45,6 @@ export class OllamaClient implements I_LlmClient {
         sourceFile: snippet.filePath,
         sourceLine: snippet.line,
       }));
-
     } catch (error) {
       console.error('Error analyzing snippet with Ollama:', error);
       return []; // Return empty array on failure to not halt the entire process

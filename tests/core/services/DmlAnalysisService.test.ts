@@ -2,33 +2,54 @@
 
 import { describe, it, expect, mock } from 'bun:test';
 import { DmlAnalysisService } from '@/core/services/DmlAnalysisService';
-import { I_SourceCodeProvider, I_FileScanner, I_LlmClient, I_ResultStorage } from '@/core/domain/ports';
-import { RepoInfo, CodeSnippet, DmlAnalysis, RepoDmlCatalog } from '@/core/domain/models';
+import {
+  I_SourceCodeProvider,
+  I_FileScanner,
+  I_LlmClient,
+  I_ResultStorage,
+} from '@/core/domain/ports';
+import {
+  RepoInfo,
+  CodeSnippet,
+  DmlAnalysis,
+  RepoDmlCatalog,
+} from '@/core/domain/models';
 
 describe('DmlAnalysisService', () => {
   it('should execute the full workflow correctly', async () => {
     // 1. Setup Mocks for all dependencies (ports)
     const mockSourceProvider: I_SourceCodeProvider = {
-      getOrganizationRepos: mock(async (): Promise<RepoInfo[]> => [{ name: 'test-repo', cloneUrl: 'url', orgName: 'test-org' }]),
+      getOrganizationRepos: mock(
+        async (): Promise<RepoInfo[]> => [
+          { name: 'test-repo', cloneUrl: 'url', orgName: 'test-org' },
+        ]
+      ),
       cloneRepo: mock(async () => {}),
     };
 
     const mockFileScanner: I_FileScanner = {
       scan: mock(async function* (): AsyncGenerator<CodeSnippet> {
-        yield { repoName: 'test-repo', filePath: 'a.py', line: 1, code: 'UPDATE users' };
+        yield {
+          repoName: 'test-repo',
+          filePath: 'a.py',
+          line: 1,
+          code: 'UPDATE users',
+        };
       }),
     };
 
     const mockLlmClient: I_LlmClient = {
-      analyzeDmlSnippet: mock(async (snippet: CodeSnippet): Promise<DmlAnalysis[]> => [
-        {
-          operation: 'UPDATE',
-          table: 'users',
-          description: 'Updates users table',
-          sourceFile: snippet.filePath,
-          sourceLine: snippet.line,
-        },
-      ]),
+      analyzeDmlSnippet: mock(
+        async (snippet: CodeSnippet): Promise<DmlAnalysis[]> => [
+          {
+            operation: 'UPDATE',
+            table: 'users',
+            description: 'Updates users table',
+            sourceFile: snippet.filePath,
+            sourceLine: snippet.line,
+          },
+        ]
+      ),
     };
 
     const mockResultStorage: I_ResultStorage = {
