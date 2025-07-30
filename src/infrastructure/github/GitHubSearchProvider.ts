@@ -10,12 +10,11 @@ import { Octokit } from 'octokit';
  */
 export class GitHubSearchProvider implements I_CodeSearchProvider {
   private readonly octokit: Octokit;
-  private readonly dmlKeywords = ['INSERT', 'UPDATE', 'DELETE', 'MERGE'];
   private readonly searchQualifier: string;
 
   constructor(
     private readonly authToken: string,
-    private readonly fileExtensions: string[],
+    private readonly dmlKeywords: string[], // Now injected
     private readonly orgName?: string,
     private readonly userName?: string,
     private readonly branchName?: string
@@ -62,13 +61,12 @@ export class GitHubSearchProvider implements I_CodeSearchProvider {
                     console.log(`    - Processing item: ${item.repository.name}/${item.path}`);
                     const content = await this.getFileContent(item.repository.full_name, item.path);
 
-                    // If we successfully get the content, yield the entire file.
                     if (content) {
                         yield {
                             repoName: item.repository.name,
                             filePath: item.path,
-                            line: 1, // Line number is no longer relevant, use 1 as a placeholder.
-                            code: content, // Send the entire file content.
+                            line: 1,
+                            code: content,
                         };
                     }
                 }
@@ -93,7 +91,6 @@ export class GitHubSearchProvider implements I_CodeSearchProvider {
         }
         return null;
     } catch (error) {
-        // It's common for search results to point to deleted files, so we log this as a warning.
         console.warn(`    - [WARN] Could not fetch content for ${repoFullName}/${path}. It may have been deleted.`);
         return null;
     }

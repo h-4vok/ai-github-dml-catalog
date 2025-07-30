@@ -17,6 +17,7 @@ export class Environment {
   public readonly cloudApiUrl: string;
   public readonly cloudModel: string;
   public readonly scannerFileExtensions: string[];
+  public readonly searchDml: string[];
 
   constructor() {
     this.githubToken = this.getOrThrow('GITHUB_TOKEN');
@@ -49,6 +50,9 @@ export class Environment {
 
     const extensions = process.env.SCANNER_FILE_EXTENSIONS || '.php,.go,.java,.cs,.py,.rb,.js,.ts,.sql';
     this.scannerFileExtensions = extensions.split(',').map(ext => ext.trim());
+
+    const dmlKeywords = process.env.SEARCH_DML || 'INSERT,UPDATE,DELETE,MERGE';
+    this.searchDml = dmlKeywords.split(',').map(kw => kw.trim());
   }
 
   private getOrThrow(key: string): string {
