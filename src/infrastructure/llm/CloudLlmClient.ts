@@ -11,12 +11,13 @@ export class CloudLlmClient implements I_LlmClient {
   constructor(
     private readonly apiUrl: string,
     private readonly apiKey: string,
-    private readonly model: string
+    private readonly model: string,
+    private readonly timeoutMs: number
   ) {}
 
   async analyzeDmlSnippet(snippet: CodeSnippet): Promise<DmlAnalysis[]> {
     const systemPrompt = `
-      You are an expert code and SQL analyst. Analyze the user-provided code snippet.
+      You are an expert code and SQL analyst. Analyze the user-provided file content.
       Identify all DML statements (INSERT, UPDATE, DELETE, MERGE). Ignore SELECT statements.
       For each DML statement, extract the operation type, the target table name, and a brief description of the data being modified.
       If you cannot clearly determine the table name due to string formatting or variables, set the table name to 'ambiguous'.
@@ -30,25 +31,21 @@ export class CloudLlmClient implements I_LlmClient {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
-        }, // <-- FIX: Added a comma here
+          'Authorization': `Bearer ${this.apiKey}`,
+        }, // <-- FIX: Added the missing comma here.
         body: JSON.stringify({
           model: this.model,
           messages: [
             { role: 'system', content: systemPrompt },
-            {
-              role: 'user',
-              content: `Analyze this code:\n\n\`\`\`\n${snippet.code}\n\`\`\``,
-            },
+            { role: 'user', content: `Analyze this file content:\n\n\`\`\`\n${snippet.code}\n\`\`\`` },
           ],
           response_format: { type: 'json_object' },
         }),
+        signal: AbortSignal.timeout(this.timeoutMs),
       });
 
       if (!response.ok) {
-        throw new Error(
-          `Cloud LLM API request failed with status ${response.status}`
-        );
+        throw new Error(`Cloud LLM API request failed with status ${response.status}`);
       }
 
       const result = await response.json();
@@ -63,6 +60,7 @@ export class CloudLlmClient implements I_LlmClient {
         sourceFile: snippet.filePath,
         sourceLine: snippet.line,
       }));
+
     } catch (error) {
       console.error('Error analyzing snippet with Cloud LLM:', error);
       return [];

@@ -5,7 +5,7 @@ import { RepoDmlCatalog, DmlAnalysis, RejectedSnippet, CodeSnippet } from '../do
 
 /**
  * DmlAnalysisService orchestrates the search and analysis process.
- * It now includes detailed logging for found snippets and a final summary.
+ * It includes detailed logging for visibility into the analysis pipeline.
  */
 export class DmlAnalysisService {
   constructor(
@@ -24,25 +24,29 @@ export class DmlAnalysisService {
 
     console.log('Searching for DML statements across all repositories...');
     for await (const snippet of this.codeSearchProvider.findDmlSnippets()) {
-      // Logging for each found snippet
-      console.log(`[FOUND]: Repo: ${snippet.repoName}, Path: ${snippet.filePath}:${snippet.line}`);
-      console.log(`[CODE]:\n---\n${snippet.code}\n---`);
       foundSnippets.push(snippet);
 
-      console.log(`  -> Analyzing with LLM...`);
+      console.log(`\n[ANALYZING]: ${snippet.repoName}/${snippet.filePath}:${snippet.line}`);
+      console.log(`[CODE]:\n---\n${snippet.code}\n---`);
+
       const analyses = await this.llmClient.analyzeDmlSnippet(snippet);
 
       if (analyses.length > 0) {
+        console.log(`  -> LLM identified ${analyses.length} DML statement(s).`);
         if (!analysisByRepo.has(snippet.repoName)) {
           analysisByRepo.set(snippet.repoName, []);
         }
         analysisByRepo.get(snippet.repoName)?.push(...analyses);
-      } else if (this.saveRejected) {
-        rejectedSnippets.push(snippet);
+      } else {
+        console.log('  -> LLM reported no DML statements.');
+        if (this.saveRejected) {
+          console.log('    -> Adding to rejected candidates log.');
+          rejectedSnippets.push(snippet);
+        }
       }
     }
 
-    // Logging for summary of found repos
+    // Restored logging for summary of found repos
     const reposWithSnippets = [...new Set(foundSnippets.map(s => s.repoName))];
     if (reposWithSnippets.length > 0) {
         console.log(`\nFound ${foundSnippets.length} potential DML snippets across ${reposWithSnippets.length} repositories:`);
@@ -68,6 +72,8 @@ export class DmlAnalysisService {
     } else {
       console.log('No confirmed DML statements found across any repositories.');
     }
+
+    console.log({saveRejected: this.saveRejected, rejectedSnippets: rejectedSnippets.length});
 
     if (this.saveRejected && rejectedSnippets.length > 0) {
         console.log(`\n--- Saving ${rejectedSnippets.length} Rejected Snippets ---`);

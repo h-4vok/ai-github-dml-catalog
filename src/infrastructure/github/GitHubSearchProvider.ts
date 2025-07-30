@@ -15,7 +15,7 @@ export class GitHubSearchProvider implements I_CodeSearchProvider {
 
   constructor(
     private readonly authToken: string,
-    private readonly fileExtensions: string[], // Kept for potential future use, but not used in the query
+    private readonly fileExtensions: string[],
     private readonly orgName?: string,
     private readonly userName?: string,
     private readonly branchName?: string
@@ -39,12 +39,9 @@ export class GitHubSearchProvider implements I_CodeSearchProvider {
 
     const branchQuery = this.branchName ? ` branch:${this.branchName}` : '';
 
-    // FIX: Execute one simplified query per DML keyword, without path/extension filters.
     for (let i = 0; i < this.dmlKeywords.length; i++) {
         const keyword = this.dmlKeywords[i];
 
-        // FIX: Add a 2-second delay between queries to avoid rate limiting.
-        // We skip the delay for the very first query.
         if (i > 0) {
             console.log('Waiting for 2 seconds to respect rate limits...');
             await new Promise(resolve => setTimeout(resolve, 2000));
@@ -60,32 +57,27 @@ export class GitHubSearchProvider implements I_CodeSearchProvider {
             );
 
             for await (const { data: searchResults } of searchIterator) {
-            for (const item of searchResults) {
-                const content = await this.getFileContent(item.repository.full_name, item.path);
-                if (!content) continue;
+                console.log(`  -> GitHub API returned a page with ${searchResults.length} results for query.`);
+                for (const item of searchResults) {
+                    console.log(`    - Processing item: ${item.repository.name}/${item.path}`);
+                    const content = await this.getFileContent(item.repository.full_name, item.path);
 
-                const lines = content.split('\n');
-                const targetLineIndex = this.findLineIndexContainingMatch(lines, item.text_matches);
-
-                if (targetLineIndex !== -1) {
-                    const start = Math.max(0, targetLineIndex - 2);
-                    const end = Math.min(lines.length, targetLineIndex + 3);
-                    const codeContext = lines.slice(start, end).join('\n');
-
-                    yield {
-                        repoName: item.repository.name,
-                        filePath: item.path,
-                        line: targetLineIndex + 1,
-                        code: codeContext,
-                    };
+                    // If we successfully get the content, yield the entire file.
+                    if (content) {
+                        yield {
+                            repoName: item.repository.name,
+                            filePath: item.path,
+                            line: 1, // Line number is no longer relevant, use 1 as a placeholder.
+                            code: content, // Send the entire file content.
+                        };
+                    }
                 }
-            }
             }
         } catch (error: any) {
             console.error(`Error searching for query "${query}":`, error.message);
             if (error.status === 403) {
                 console.warn('Rate limit likely hit. The script will continue after a longer delay.');
-                await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10s on hard failure
+                await new Promise(resolve => setTimeout(resolve, 10000));
             }
         }
     }
@@ -101,14 +93,9 @@ export class GitHubSearchProvider implements I_CodeSearchProvider {
         }
         return null;
     } catch (error) {
-        console.error(`Failed to fetch content for ${repoFullName}/${path}:`, error);
+        // It's common for search results to point to deleted files, so we log this as a warning.
+        console.warn(`    - [WARN] Could not fetch content for ${repoFullName}/${path}. It may have been deleted.`);
         return null;
     }
-  }
-
-  private findLineIndexContainingMatch(lines: string[], text_matches: any[]): number {
-    if (!text_matches || text_matches.length === 0) return -1;
-    const matchFragment = text_matches[0].fragment;
-    return lines.findIndex(line => line.includes(matchFragment));
   }
 }
