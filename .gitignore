@@ -10,6 +10,7 @@ dist/
 # Temporary files
 temp_repos/
 dml_catalog.json
+dml_catalog_rejected.json
 
 # Log files
 *.log

@@ -25,6 +25,7 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.14.0",
     "octokit": "^4.0.2"
   }
 }

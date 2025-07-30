@@ -6,122 +6,93 @@ import { Octokit } from 'octokit';
 
 /**
  * An efficient implementation of I_CodeSearchProvider that uses the GitHub Code Search API
- * to find DML statements directly, avoiding the need to clone repositories.
+ * to find DML statements directly. This version can search within an organization OR a user's account.
  */
 export class GitHubSearchProvider implements I_CodeSearchProvider {
   private readonly octokit: Octokit;
-  private readonly dmlKeywords = ['INSERT', 'UPDATE', 'DELETE', 'MERGE'];
+  private readonly searchQualifier: string;
 
   constructor(
     private readonly authToken: string,
-    private readonly orgName: string,
-    private readonly fileExtensions: string[]
+    private readonly dmlKeywords: string[], // FIX: Changed parameter name to match main.ts
+    private readonly orgName?: string,
+    private readonly userName?: string,
+    private readonly branchName?: string
   ) {
     this.octokit = new Octokit({ auth: this.authToken });
+
+    if (orgName) {
+      this.searchQualifier = `org:${orgName}`;
+    } else if (userName) {
+      this.searchQualifier = `user:${userName}`;
+    } else {
+      throw new Error('Must provide either an organization or a user name.');
+    }
   }
 
   async *findDmlSnippets(): AsyncGenerator<CodeSnippet> {
-    console.log(`Searching for DML keywords in organization: ${this.orgName}`);
+    console.log(`Searching for DML keywords in: ${this.searchQualifier}`);
+    if (this.branchName) {
+      console.log(`Targeting branch: ${this.branchName}`);
+    }
 
-    const extensionsQuery = this.fileExtensions
-      .map((ext) => `extension:${ext}`)
-      .join(' ');
+    const branchQuery = this.branchName ? ` branch:${this.branchName}` : '';
 
-    for (const keyword of this.dmlKeywords) {
-      const query = `${keyword} org:${this.orgName} ${extensionsQuery}`;
-      console.log(`Executing search query: "${query}"`);
+    for (let i = 0; i < this.dmlKeywords.length; i++) {
+        const keyword = this.dmlKeywords[i];
 
-      try {
-        const searchIterator = this.octokit.paginate.iterator(
-          this.octokit.rest.search.code,
-          { q: query }
-        );
+        if (i > 0) {
+            console.log('Waiting for 2 seconds to respect rate limits...');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
 
-        for await (const { data: searchResults } of searchIterator) {
-          for (const item of searchResults) {
-            // The search result gives us a text match, but we need more context for the LLM.
-            // We'll fetch the full file content to provide that context.
-            const content = await this.getFileContent(
-              item.repository.full_name,
-              item.path
-            );
-            if (!content) continue;
+        const query = `${keyword} ${this.searchQualifier}${branchQuery}`;
+        console.log(`Executing search query: "${query}"`);
 
-            const lines = content.split('\n');
-            const lineNumber = this.findLineNumber(lines, item.sha); // Search API doesn't give line number directly
-
-            // Heuristic to find the line number from the text match if needed
-            const targetLineIndex = this.findLineIndexContainingMatch(
-              lines,
-              item.text_matches
+        try {
+            const searchIterator = this.octokit.paginate.iterator(
+            this.octokit.rest.search.code,
+            { q: query }
             );
 
-            if (targetLineIndex !== -1) {
-              const start = Math.max(0, targetLineIndex - 2);
-              const end = Math.min(lines.length, targetLineIndex + 3);
-              const codeContext = lines.slice(start, end).join('\n');
+            for await (const { data: searchResults } of searchIterator) {
+                console.log(`  -> GitHub API returned a page with ${searchResults.length} results for query.`);
+                for (const item of searchResults) {
+                    console.log(`    - Processing item: ${item.repository.name}/${item.path}`);
+                    const content = await this.getFileContent(item.repository.full_name, item.path);
 
-              yield {
-                repoName: item.repository.name,
-                filePath: item.path,
-                line: targetLineIndex + 1,
-                code: codeContext,
-              };
+                    if (content) {
+                        yield {
+                            repoName: item.repository.name,
+                            filePath: item.path,
+                            line: 1,
+                            code: content,
+                        };
+                    }
+                }
             }
-          }
+        } catch (error: any) {
+            console.error(`Error searching for query "${query}":`, error.message);
+            if (error.status === 403) {
+                console.warn('Rate limit likely hit. The script will continue after a longer delay.');
+                await new Promise(resolve => setTimeout(resolve, 10000));
+            }
         }
-      } catch (error: any) {
-        console.error(
-          `Error searching for keyword "${keyword}":`,
-          error.message
-        );
-        if (error.status === 403) {
-          console.warn(
-            'Rate limit likely hit. The script will continue with the next keyword after a short delay.'
-          );
-          await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
-        }
-      }
     }
   }
 
-  private async getFileContent(
-    repoFullName: string,
-    path: string
-  ): Promise<string | null> {
+  private async getFileContent(repoFullName: string, path: string): Promise<string | null> {
     try {
-      const [owner, repo] = repoFullName.split('/');
-      const { data } = await this.octokit.rest.repos.getContent({
-        owner,
-        repo,
-        path,
-      });
-      if ('content' in data) {
-        return Buffer.from(data.content, 'base64').toString('utf-8');
-      }
-      return null;
+        const [owner, repo] = repoFullName.split('/');
+        const ref = this.branchName ? { ref: this.branchName } : {};
+        const { data } = await this.octokit.rest.repos.getContent({ owner, repo, path, ...ref });
+        if ('content' in data) {
+            return Buffer.from(data.content, 'base64').toString('utf-8');
+        }
+        return null;
     } catch (error) {
-      console.error(
-        `Failed to fetch content for ${repoFullName}/${path}:`,
-        error
-      );
-      return null;
+        console.warn(`    - [WARN] Could not fetch content for ${repoFullName}/${path}. It may have been deleted.`);
+        return null;
     }
-  }
-
-  private findLineIndexContainingMatch(
-    lines: string[],
-    text_matches: any[]
-  ): number {
-    if (!text_matches || text_matches.length === 0) return -1;
-    const matchFragment = text_matches[0].fragment;
-    // Find the first line that contains the matched fragment
-    return lines.findIndex((line) => line.includes(matchFragment));
-  }
-
-  // This is a placeholder as the search API v3 doesn't provide a reliable line number.
-  // The text match heuristic above is more practical.
-  private findLineNumber(lines: string[], sha: string): number {
-    return 1; // Placeholder
   }
 }
