@@ -3,28 +3,42 @@
 import { I_CodeSearchProvider, I_LlmClient, I_ResultStorage } from '../domain/ports';
 import { RepoDmlCatalog, DmlAnalysis, RejectedSnippet, CodeSnippet } from '../domain/models';
 
+// A simple helper function to introduce a delay.
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 /**
  * DmlAnalysisService orchestrates the search and analysis process.
- * It includes detailed logging for visibility into the analysis pipeline.
+ * It includes a delay between LLM calls to respect API rate limits.
  */
 export class DmlAnalysisService {
   constructor(
     private readonly codeSearchProvider: I_CodeSearchProvider,
     private readonly llmClient: I_LlmClient,
     private readonly resultStorage: I_ResultStorage,
-    private readonly saveRejected: boolean
+    private readonly saveRejected: boolean,
+    private readonly requestDelayMs: number
   ) {}
 
   public async execute(): Promise<void> {
     console.log('Starting DML Catalog Bot (Search Mode)...');
+    console.log(`Save rejected candidates mode: ${this.saveRejected ? 'ENABLED' : 'DISABLED'}`);
 
     const analysisByRepo = new Map<string, DmlAnalysis[]>();
     const rejectedSnippets: RejectedSnippet[] = [];
     const foundSnippets: CodeSnippet[] = [];
 
     console.log('Searching for DML statements across all repositories...');
+    let isFirstLlmRequest = true;
     for await (const snippet of this.codeSearchProvider.findDmlSnippets()) {
       foundSnippets.push(snippet);
+
+      // FIX: Add a delay before each LLM request (except the very first one)
+      // to avoid hitting API rate limits.
+      if (!isFirstLlmRequest && this.requestDelayMs > 0) {
+        console.log(`Waiting for ${this.requestDelayMs}ms before next LLM call...`);
+        await delay(this.requestDelayMs);
+      }
+      isFirstLlmRequest = false;
 
       console.log(`\n[ANALYZING]: ${snippet.repoName}/${snippet.filePath}:${snippet.line}`);
       console.log(`[CODE]:\n---\n${snippet.code}\n---`);
@@ -46,7 +60,6 @@ export class DmlAnalysisService {
       }
     }
 
-    // Restored logging for summary of found repos
     const reposWithSnippets = [...new Set(foundSnippets.map(s => s.repoName))];
     if (reposWithSnippets.length > 0) {
         console.log(`\nFound ${foundSnippets.length} potential DML snippets across ${reposWithSnippets.length} repositories:`);
@@ -72,8 +85,6 @@ export class DmlAnalysisService {
     } else {
       console.log('No confirmed DML statements found across any repositories.');
     }
-
-    console.log({saveRejected: this.saveRejected, rejectedSnippets: rejectedSnippets.length});
 
     if (this.saveRejected && rejectedSnippets.length > 0) {
         console.log(`\n--- Saving ${rejectedSnippets.length} Rejected Snippets ---`);

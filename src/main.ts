@@ -11,7 +11,8 @@ import { I_LlmClient } from './core/domain/ports';
 
 /**
  * The Composition Root.
- * This wires together the application, now with support for Gemini.
+ * This is the single place in the application where concrete classes are instantiated
+ * and dependencies are wired together.
  */
 async function main() {
   try {
@@ -19,7 +20,7 @@ async function main() {
 
     const codeSearchProvider = new GitHubSearchProvider(
       env.githubToken,
-      env.scannerFileExtensions,
+      env.searchDmlKeywords, // Using the new configurable keywords
       env.githubOrgName,
       env.githubUserName,
       env.githubBranchName
@@ -54,7 +55,7 @@ async function main() {
       llmClient,
       resultStorage,
       env.saveRejectedCandidates,
-      env.llmRequestDelayMs // Pass the new delay value
+      env.llmRequestDelayMs
     );
 
     await analysisService.execute();

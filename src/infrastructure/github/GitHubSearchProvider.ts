@@ -14,7 +14,7 @@ export class GitHubSearchProvider implements I_CodeSearchProvider {
 
   constructor(
     private readonly authToken: string,
-    private readonly dmlKeywords: string[], // Now injected
+    private readonly dmlKeywords: string[], // FIX: Changed parameter name to match main.ts
     private readonly orgName?: string,
     private readonly userName?: string,
     private readonly branchName?: string
