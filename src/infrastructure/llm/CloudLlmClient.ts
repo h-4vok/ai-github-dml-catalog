@@ -2,7 +2,7 @@
 
 import { I_LlmClient } from '@/core/domain/ports';
 import { CodeSnippet, DmlAnalysis } from '@/core/domain/models';
-
+import { prompt } from './prompt';
 /**
  * Concrete implementation of I_LlmClient for a cloud-based LLM provider
  * like OpenAI.
@@ -16,15 +16,7 @@ export class CloudLlmClient implements I_LlmClient {
   ) {}
 
   async analyzeDmlSnippet(snippet: CodeSnippet): Promise<DmlAnalysis[]> {
-    const systemPrompt = `
-      You are an expert code and SQL analyst. Analyze the user-provided file content.
-      Identify all DML statements (INSERT, UPDATE, DELETE, MERGE). Ignore SELECT statements.
-      For each DML statement, extract the operation type, the target table name, and a brief description of the data being modified.
-      If you cannot clearly determine the table name due to string formatting or variables, set the table name to 'ambiguous'.
-
-      You MUST respond with a valid JSON object containing a single key "dml_statements", which is an array of objects. Each object must have the keys "operation", "table", and "description".
-      If no DML statements are found, return an empty array: {"dml_statements": []}.
-    `;
+    const systemPrompt = prompt;
 
     try {
       const response = await fetch(this.apiUrl, {

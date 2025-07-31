@@ -1,7 +1,7 @@
-// src/infrastructure/llm/OllamaClient.ts
 
 import { I_LlmClient } from '@/core/domain/ports';
 import { CodeSnippet, DmlAnalysis } from '@/core/domain/models';
+import { promptWithSnippet } from './prompt';
 
 /**
  * Concrete implementation of I_LlmClient for a local Ollama instance.
@@ -14,14 +14,14 @@ export class OllamaClient implements I_LlmClient {
   ) {}
 
   async analyzeDmlSnippet(snippet: CodeSnippet): Promise<DmlAnalysis[]> {
-    const prompt = this.buildPrompt(snippet.code);
+
     try {
       const response = await fetch(`${this.baseUrl}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: this.model,
-          prompt,
+          prompt: promptWithSnippet(snippet),
           stream: false,
           format: 'json',
         }),
@@ -32,7 +32,7 @@ export class OllamaClient implements I_LlmClient {
         throw new Error(`Ollama API request failed with status ${response.status}`);
       }
 
-      const result = await response.json();
+      const result : any = await response.json();
       const jsonResponse = JSON.parse(result.response);
 
       if (!Array.isArray(jsonResponse.dml_statements)) {
