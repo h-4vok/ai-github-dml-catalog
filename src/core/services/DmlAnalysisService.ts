@@ -41,7 +41,6 @@ export class DmlAnalysisService {
       isFirstLlmRequest = false;
 
       console.log(`\n[ANALYZING]: ${snippet.repoName}/${snippet.filePath}:${snippet.line}`);
-      console.log(`[CODE]:\n---\n${snippet.code}\n---`);
 
       const analyses = await this.llmClient.analyzeDmlSnippet(snippet);
 
